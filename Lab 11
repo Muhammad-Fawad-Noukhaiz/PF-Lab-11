@@ -1,0 +1,198 @@
+#include <stdio.h>
+#include <string.h>
+
+#define MAX_PLAYERS 5
+#define MAX_BOWLERS 3
+#define MAX_BATS 2
+
+struct player {
+    char name[20];
+    char team[20];
+};
+
+struct bowl {
+    char type[10];
+    char arm[5];
+    struct player ply;
+};
+
+struct bat {
+    char type[10];
+    char handed[8];
+    struct bowl ply2;
+};
+
+void createPlayer(struct player *p, const char *name, const char *team) {
+    strcpy(p->name, name);
+    strcpy(p->team, team);
+}
+
+void createBowler(struct bowl *b, const char *type, const char *arm, struct player p) {
+    strcpy(b->type, type);
+    strcpy(b->arm, arm);
+    b->ply = p;
+}
+
+void createBatsman(struct bat *b, const char *type, const char *handed, struct bowl bowler) {
+    strcpy(b->type, type);
+    strcpy(b->handed, handed);
+    b->ply2 = bowler;
+}
+
+void savePlayerData(struct player players[], int size) {
+    FILE *file = fopen("players.dat", "wb");
+    if (file == NULL) {
+        printf("Error opening file for writing 'players.dat'!\n");
+        return;
+    }
+    fwrite(players, sizeof(struct player), size, file);
+    fclose(file);
+}
+
+void saveBowlerData(struct bowl bowlers[], int size) {
+    FILE *file = fopen("bowlers.dat", "wb");
+    if (file == NULL) {
+        printf("Error opening file for writing 'bowlers.dat'!\n");
+        return;
+    }
+    fwrite(bowlers, sizeof(struct bowl), size, file);
+    fclose(file);
+}
+
+void saveBatsmanData(struct bat bats[], int size) {
+    FILE *file = fopen("batsmen.dat", "wb");
+    if (file == NULL) {
+        printf("Error opening file for writing 'batsmen.dat'!\n");
+        return;
+    }
+    fwrite(bats, sizeof(struct bat), size, file);
+    fclose(file);
+}
+
+void readPlayerData() {
+    FILE *file = fopen("players.dat", "rb");
+    if (file == NULL) {
+        printf("Error opening file for reading 'players.dat'!\n");
+        return;
+    }
+
+    struct player p;
+    printf("\n--- Player Data ---\n");
+    while (fread(&p, sizeof(struct player), 1, file)) {
+        printf("Name: %s, Team: %s\n", p.name, p.team);
+    }
+    fclose(file);
+}
+
+void readBowlerData() {
+    FILE *file = fopen("bowlers.dat", "rb");
+    if (file == NULL) {
+        printf("Error opening file for reading 'bowlers.dat'!\n");
+        return;
+    }
+
+    struct bowl b;
+    printf("\n--- Bowler Data ---\n");
+    while (fread(&b, sizeof(struct bowl), 1, file)) {
+        printf("Name: %s, Team: %s, Type: %s, Arm: %s\n", b.ply.name, b.ply.team, b.type, b.arm);
+    }
+    fclose(file);
+}
+
+void readBatsmanData() {
+    FILE *file = fopen("batsmen.dat", "rb");
+    if (file == NULL) {
+        printf("Error opening file for reading 'batsmen.dat'!\n");
+        return;
+    }
+
+    struct bat b;
+    printf("\n--- Batsman Data ---\n");
+    while (fread(&b, sizeof(struct bat), 1, file)) {
+        printf("Name: %s, Team: %s, Type: %s, Handed: %s\n", b.ply2.ply.name, b.ply2.ply.team, b.type, b.handed);
+    }
+    fclose(file);
+}
+
+void updatePlayerData(const char *name, struct player newData) {
+    FILE *file = fopen("players.dat", "r+b");
+    if (file == NULL) {
+        printf("Error opening file for reading/writing 'players.dat'!\n");
+        return;
+    }
+
+    struct player p;
+    while (fread(&p, sizeof(struct player), 1, file)) {
+        if (strcmp(p.name, name) == 0) {
+            fseek(file, -sizeof(struct player), SEEK_CUR);
+            fwrite(&newData, sizeof(struct player), 1, file);
+            printf("Player data updated successfully!\n");
+            fclose(file);
+            return;
+        }
+    }
+    printf("Player not found.\n");
+    fclose(file);
+}
+
+void deletePlayerData(const char *name) {
+    FILE *file = fopen("players.dat", "rb");
+    FILE *tempFile = fopen("temp.dat", "wb");
+    if (file == NULL || tempFile == NULL) {
+        printf("Error opening file for reading/writing!\n");
+        return;
+    }
+
+    struct player p;
+    int found = 0;
+    while (fread(&p, sizeof(struct player), 1, file)) {
+        if (strcmp(p.name, name) != 0) {
+            fwrite(&p, sizeof(struct player), 1, tempFile);
+        } else {
+            found = 1;
+        }
+    }
+
+    fclose(file);
+    fclose(tempFile);
+
+    if (found) {
+        remove("players.dat");
+        rename("temp.dat", "players.dat");
+        printf("Player data deleted successfully!\n");
+    } else {
+        printf("Player not found.\n");
+        remove("temp.dat");
+    }
+}
+
+int main() {
+    struct player players[MAX_PLAYERS];
+    struct bowl bowlers[MAX_BOWLERS];
+    struct bat bats[MAX_BATS];
+
+    createPlayer(&players[0], "Player1", "TeamA");
+    createPlayer(&players[1], "Player2", "TeamB");
+
+    createBowler(&bowlers[0], "Pacer", "Right", players[0]);
+    createBowler(&bowlers[1], "Seamer", "Left", players[1]);
+
+    createBatsman(&bats[0], "Top Order", "Righty", bowlers[0]);
+
+    savePlayerData(players, 2);
+    saveBowlerData(bowlers, 2);
+    saveBatsmanData(bats, 1);
+
+    readPlayerData();
+    readBowlerData();
+    readBatsmanData();
+
+    struct player updatedPlayer = {"Player2", "TeamC"};
+    updatePlayerData("Player2", updatedPlayer);
+
+    deletePlayerData("Player1");
+
+    readPlayerData();
+
+    return 0;
+}
